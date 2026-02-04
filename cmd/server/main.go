@@ -26,7 +26,7 @@ func main() {
 	defer conn.Close()
 	fmt.Println("Connection successful.")
 	gamelogic.PrintServerHelp()
-loop:
+server_loop:
 	for {
 		words := gamelogic.GetInput()
 		if len(words) == 0 {
@@ -40,8 +40,8 @@ loop:
 			fmt.Println("Sending a resume message...")
 			pubsub.PublishJSON(connCh, routing.ExchangePerilDirect, routing.PauseKey, routing.PlayingState{IsPaused: false})
 		case "quit":
-			fmt.Println("Exiting...")
-			break loop
+			fmt.Println("Exiting menu...")
+			break server_loop
 		default:
 			fmt.Println("Sorry, I don't understand that command.")
 		}
@@ -50,5 +50,5 @@ loop:
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, os.Interrupt)
 	<-signalCh
-	fmt.Println("Interrupt detected, shutting down...")
+	fmt.Println("Interrupt detected, shutting down server...")
 }

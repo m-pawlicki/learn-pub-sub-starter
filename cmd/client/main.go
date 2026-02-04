@@ -24,6 +24,34 @@ func main() {
 		log.Fatalf("Something went wrong logging in: %v", err)
 	}
 	pubsub.DeclareAndBind(conn, "peril_direct", "pause."+username, "pause", pubsub.QueueTransient)
+	gs := gamelogic.NewGameState(username)
+client_loop:
+	for {
+		words := gamelogic.GetInput()
+		if len(words) == 0 {
+			continue
+		}
+		switch words[0] {
+		case "spawn":
+			gs.CommandSpawn(words)
+		case "move":
+			_, err := gs.CommandMove(words)
+			if err == nil {
+				fmt.Println("Move successful.")
+			}
+		case "status":
+			gs.CommandStatus()
+		case "help":
+			gamelogic.PrintClientHelp()
+		case "spam":
+			fmt.Println("Spamming not allowed yet!")
+		case "quit":
+			gamelogic.PrintQuit()
+			break client_loop
+		default:
+			fmt.Println("Sorry, I don't understand that command.")
+		}
+	}
 	//waiting for ctrl+c
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, os.Interrupt)
