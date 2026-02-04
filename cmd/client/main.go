@@ -8,6 +8,7 @@ import (
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -23,7 +24,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Something went wrong logging in: %v", err)
 	}
-	pubsub.DeclareAndBind(conn, "peril_direct", "pause."+username, "pause", pubsub.QueueTransient)
+	pubsub.DeclareAndBind(conn, routing.ExchangePerilDirect, routing.PauseKey+"."+username, routing.PauseKey, pubsub.QueueTransient)
 	gs := gamelogic.NewGameState(username)
 client_loop:
 	for {
