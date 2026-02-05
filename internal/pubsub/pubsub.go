@@ -8,22 +8,6 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-func PublishJSON[T any](ch *amqp.Channel, exchange, key string, val T) error {
-	bytes, err := json.Marshal(val)
-	if err != nil {
-		log.Fatalf("Error marshalling JSON: %v", err)
-	}
-	pub := amqp.Publishing{
-		ContentType: "application/json",
-		Body:        bytes,
-	}
-	err = ch.PublishWithContext(context.Background(), exchange, key, false, false, pub)
-	if err != nil {
-		log.Fatalf("Error publishing to channel: %v", err)
-	}
-	return nil
-}
-
 type SimpleQueueType int
 
 const (
@@ -38,6 +22,22 @@ var queueType = map[SimpleQueueType]string{
 
 func (qt SimpleQueueType) String() string {
 	return queueType[qt]
+}
+
+func PublishJSON[T any](ch *amqp.Channel, exchange, key string, val T) error {
+	bytes, err := json.Marshal(val)
+	if err != nil {
+		log.Fatalf("Error marshalling JSON: %v", err)
+	}
+	pub := amqp.Publishing{
+		ContentType: "application/json",
+		Body:        bytes,
+	}
+	err = ch.PublishWithContext(context.Background(), exchange, key, false, false, pub)
+	if err != nil {
+		log.Fatalf("Error publishing to channel: %v", err)
+	}
+	return nil
 }
 
 func DeclareAndBind(
@@ -79,4 +79,41 @@ func DeclareAndBind(
 	}
 
 	return ch, q, nil
+}
+
+func SubscribeJSON[T any](
+	conn *amqp.Connection,
+	exchange,
+	queueName,
+	key string,
+	queueType SimpleQueueType, // an enum to represent "durable" or "transient"
+	handler func(T),
+) error {
+
+	ch, _, err := DeclareAndBind(conn, exchange, queueName, key, queueType)
+	if err != nil {
+		log.Fatalf("Error during declare and bind process: %v", err)
+	}
+
+	deliveryCh, err := ch.Consume(queueName, "", false, false, false, false, nil)
+	if err != nil {
+		log.Fatalf("Error with consumption: %v", err)
+	}
+
+	go func() {
+		for msg := range deliveryCh {
+			var data T
+			err := json.Unmarshal(msg.Body, &data)
+			if err != nil {
+				log.Fatalf("Error unmarshalling data: %v", err)
+			}
+			handler(data)
+			err = msg.Ack(false)
+			if err != nil {
+				log.Fatalf("Ack error: %v", err)
+			}
+		}
+	}()
+
+	return nil
 }

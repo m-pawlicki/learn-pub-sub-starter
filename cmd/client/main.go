@@ -12,6 +12,13 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) {
+	return func(ps routing.PlayingState) {
+		defer fmt.Print("> ")
+		gs.HandlePause(ps)
+	}
+}
+
 func main() {
 	fmt.Println("Starting Peril client...")
 	connString := "amqp://guest:guest@localhost:5672/"
@@ -24,8 +31,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Something went wrong logging in: %v", err)
 	}
-	pubsub.DeclareAndBind(conn, routing.ExchangePerilDirect, routing.PauseKey+"."+username, routing.PauseKey, pubsub.QueueTransient)
 	gs := gamelogic.NewGameState(username)
+	pubsub.SubscribeJSON(conn, routing.ExchangePerilDirect, "pause."+username, routing.PauseKey, pubsub.QueueTransient, handlerPause(gs))
 client_loop:
 	for {
 		words := gamelogic.GetInput()
