@@ -66,6 +66,8 @@ func DeclareAndBind(
 		durable = false
 		autoDelete = true
 		exclusive = true
+	default:
+		log.Fatal("Unknown queue type!")
 	}
 
 	q, err := ch.QueueDeclare(queueName, durable, autoDelete, exclusive, false, nil)
