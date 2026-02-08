@@ -16,15 +16,6 @@ const (
 	QueueTransient                        // 1
 )
 
-var queueType = map[SimpleQueueType]string{
-	QueueDurable:   "durable",
-	QueueTransient: "transient",
-}
-
-func (qt SimpleQueueType) String() string {
-	return queueType[qt]
-}
-
 type AckType int
 
 const (
@@ -79,7 +70,11 @@ func DeclareAndBind(
 		log.Fatal("Unknown queue type!")
 	}
 
-	q, err := ch.QueueDeclare(queueName, durable, autoDelete, exclusive, false, nil)
+	queueArgs := amqp.Table{
+		"x-dead-letter-exchange": "peril_dlx",
+	}
+
+	q, err := ch.QueueDeclare(queueName, durable, autoDelete, exclusive, false, queueArgs)
 	if err != nil {
 		log.Fatalf("Error declaring queue: %v", err)
 	}
