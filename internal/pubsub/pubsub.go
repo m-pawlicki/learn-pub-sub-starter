@@ -3,6 +3,7 @@ package pubsub
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -23,6 +24,14 @@ var queueType = map[SimpleQueueType]string{
 func (qt SimpleQueueType) String() string {
 	return queueType[qt]
 }
+
+type AckType int
+
+const (
+	Ack         AckType = iota //0
+	NackRequeue                //1
+	NackDiscard                //2
+)
 
 func PublishJSON[T any](ch *amqp.Channel, exchange, key string, val T) error {
 	bytes, err := json.Marshal(val)
@@ -89,7 +98,7 @@ func SubscribeJSON[T any](
 	queueName,
 	key string,
 	queueType SimpleQueueType, // an enum to represent "durable" or "transient"
-	handler func(T),
+	handler func(T) AckType,
 ) error {
 
 	ch, _, err := DeclareAndBind(conn, exchange, queueName, key, queueType)
@@ -109,10 +118,18 @@ func SubscribeJSON[T any](
 			if err != nil {
 				log.Fatalf("Error unmarshalling data: %v", err)
 			}
-			handler(data)
-			err = msg.Ack(false)
-			if err != nil {
-				log.Fatalf("Ack error: %v", err)
+			switch handler(data) {
+			case Ack:
+				msg.Ack(false)
+				fmt.Println("Ack")
+			case NackDiscard:
+				msg.Nack(false, false)
+				fmt.Println("NackDiscard")
+			case NackRequeue:
+				msg.Nack(false, true)
+				fmt.Println("NackRequeue")
+			default:
+				log.Fatalf("Something went wrong: %v", err)
 			}
 		}
 	}()

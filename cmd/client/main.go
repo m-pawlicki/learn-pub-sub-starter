@@ -12,20 +12,6 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) {
-	return func(ps routing.PlayingState) {
-		defer fmt.Print("> ")
-		gs.HandlePause(ps)
-	}
-}
-
-func handlerMove(gs *gamelogic.GameState) func(gamelogic.ArmyMove) {
-	return func(mv gamelogic.ArmyMove) {
-		defer fmt.Print("> ")
-		gs.HandleMove(mv)
-	}
-}
-
 func main() {
 	fmt.Println("Starting Peril client...")
 
@@ -55,8 +41,8 @@ func main() {
 		userMoves = "army_moves." + username
 	)
 
-	pubsub.SubscribeJSON(conn, routing.ExchangePerilDirect, userPause, routing.PauseKey, pubsub.QueueTransient, handlerPause(gs))
-	pubsub.SubscribeJSON(conn, routing.ExchangePerilTopic, userMoves, "army_moves.*", pubsub.QueueTransient, handlerMove(gs))
+	pubsub.SubscribeJSON(conn, routing.ExchangePerilDirect, userPause, routing.PauseKey, pubsub.QueueTransient, HandlerPause(gs))
+	pubsub.SubscribeJSON(conn, routing.ExchangePerilTopic, userMoves, "army_moves.*", pubsub.QueueTransient, HandlerMove(gs))
 
 client_loop:
 	for {
