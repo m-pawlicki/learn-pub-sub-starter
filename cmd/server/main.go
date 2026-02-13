@@ -17,11 +17,11 @@ func main() {
 	connString := "amqp://guest:guest@localhost:5672/"
 	conn, err := amqp.Dial(connString)
 	if err != nil {
-		log.Fatalf("Could not connect: %v", err)
+		log.Fatalf("Could not connect: %v\n", err)
 	}
 	connCh, err := conn.Channel()
 	if err != nil {
-		log.Fatalf("Channel error: %v", err)
+		log.Fatalf("Channel error: %v\n", err)
 	}
 	defer conn.Close()
 	fmt.Println("Connection successful.")

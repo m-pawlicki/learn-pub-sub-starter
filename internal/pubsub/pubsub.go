@@ -27,7 +27,7 @@ const (
 func PublishJSON[T any](ch *amqp.Channel, exchange, key string, val T) error {
 	bytes, err := json.Marshal(val)
 	if err != nil {
-		log.Fatalf("Error marshalling JSON: %v", err)
+		log.Fatalf("Error marshalling JSON: %v\n", err)
 	}
 	pub := amqp.Publishing{
 		ContentType: "application/json",
@@ -35,7 +35,7 @@ func PublishJSON[T any](ch *amqp.Channel, exchange, key string, val T) error {
 	}
 	err = ch.PublishWithContext(context.Background(), exchange, key, false, false, pub)
 	if err != nil {
-		log.Fatalf("Error publishing to channel: %v", err)
+		log.Fatalf("Error publishing to channel: %v\n", err)
 	}
 	return nil
 }
@@ -50,7 +50,7 @@ func DeclareAndBind(
 
 	ch, err := conn.Channel()
 	if err != nil {
-		log.Fatalf("Error creating channel: %v", err)
+		log.Fatalf("Error creating channel: %v\n", err)
 	}
 
 	var durable bool
@@ -67,7 +67,7 @@ func DeclareAndBind(
 		autoDelete = true
 		exclusive = true
 	default:
-		log.Fatal("Unknown queue type!")
+		log.Fatal("Unknown queue type!\n")
 	}
 
 	queueArgs := amqp.Table{
@@ -76,12 +76,12 @@ func DeclareAndBind(
 
 	q, err := ch.QueueDeclare(queueName, durable, autoDelete, exclusive, false, queueArgs)
 	if err != nil {
-		log.Fatalf("Error declaring queue: %v", err)
+		log.Fatalf("Error declaring queue: %v\n", err)
 	}
 
 	err = ch.QueueBind(queueName, key, exchange, false, nil)
 	if err != nil {
-		log.Fatalf("Error binding queue: %v", err)
+		log.Fatalf("Error binding queue: %v\n", err)
 	}
 
 	return ch, q, nil
@@ -98,12 +98,12 @@ func SubscribeJSON[T any](
 
 	ch, _, err := DeclareAndBind(conn, exchange, queueName, key, queueType)
 	if err != nil {
-		log.Fatalf("Error during declare and bind process: %v", err)
+		log.Fatalf("Error during declare and bind process: %v\n", err)
 	}
 
 	deliveryCh, err := ch.Consume(queueName, "", false, false, false, false, nil)
 	if err != nil {
-		log.Fatalf("Error with consumption: %v", err)
+		log.Fatalf("Error with consumption: %v\n", err)
 	}
 
 	go func() {
@@ -111,7 +111,7 @@ func SubscribeJSON[T any](
 			var data T
 			err := json.Unmarshal(msg.Body, &data)
 			if err != nil {
-				log.Fatalf("Error unmarshalling data: %v", err)
+				log.Fatalf("Error unmarshalling data: %v\n", err)
 			}
 			switch handler(data) {
 			case Ack:
@@ -124,7 +124,7 @@ func SubscribeJSON[T any](
 				msg.Nack(false, true)
 				fmt.Println("NackRequeue")
 			default:
-				log.Fatalf("Something went wrong: %v", err)
+				log.Fatalf("Something went wrong: %v\n", err)
 			}
 		}
 	}()
