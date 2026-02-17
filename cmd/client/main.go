@@ -51,9 +51,9 @@ func main() {
 		log.Fatalf("Error subscribing to moves exchange: %v\n", err)
 	}
 
-	err = pubsub.SubscribeJSON(conn, routing.ExchangePerilTopic, "war", routing.WarRecognitionsPrefix+".*", pubsub.QueueDurable, HandlerConsumeWar(gs))
+	err = pubsub.SubscribeJSON(conn, routing.ExchangePerilTopic, "war", routing.WarRecognitionsPrefix+".*", pubsub.QueueDurable, HandlerWarOutcome(publishCh, gs))
 	if err != nil {
-		log.Fatalf("Error subscribing to war exchange: %v\v", err)
+		log.Fatalf("Error subscribing to war exchange: %v\n", err)
 	}
 
 client_loop:

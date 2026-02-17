@@ -1,11 +1,15 @@
 package pubsub
 
 import (
+	"bytes"
 	"context"
+	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -27,7 +31,7 @@ const (
 func PublishJSON[T any](ch *amqp.Channel, exchange, key string, val T) error {
 	bytes, err := json.Marshal(val)
 	if err != nil {
-		log.Fatalf("Error marshalling JSON: %v\n", err)
+		return err
 	}
 	pub := amqp.Publishing{
 		ContentType: "application/json",
@@ -50,7 +54,7 @@ func DeclareAndBind(
 
 	ch, err := conn.Channel()
 	if err != nil {
-		log.Fatalf("Error creating channel: %v\n", err)
+		return nil, amqp.Queue{}, err
 	}
 
 	var durable bool
@@ -76,12 +80,12 @@ func DeclareAndBind(
 
 	q, err := ch.QueueDeclare(queueName, durable, autoDelete, exclusive, false, queueArgs)
 	if err != nil {
-		log.Fatalf("Error declaring queue: %v\n", err)
+		return nil, amqp.Queue{}, err
 	}
 
 	err = ch.QueueBind(queueName, key, exchange, false, nil)
 	if err != nil {
-		log.Fatalf("Error binding queue: %v\n", err)
+		return nil, amqp.Queue{}, err
 	}
 
 	return ch, q, nil
@@ -98,12 +102,12 @@ func SubscribeJSON[T any](
 
 	ch, _, err := DeclareAndBind(conn, exchange, queueName, key, queueType)
 	if err != nil {
-		log.Fatalf("Error during declare and bind process: %v\n", err)
+		return err
 	}
 
 	deliveryCh, err := ch.Consume(queueName, "", false, false, false, false, nil)
 	if err != nil {
-		log.Fatalf("Error with consumption: %v\n", err)
+		return err
 	}
 
 	go func() {
@@ -116,18 +120,49 @@ func SubscribeJSON[T any](
 			switch handler(data) {
 			case Ack:
 				msg.Ack(false)
-				fmt.Println("Ack")
+				fmt.Println("\nAck")
 			case NackDiscard:
 				msg.Nack(false, false)
-				fmt.Println("NackDiscard")
+				fmt.Println("\nNackDiscard")
 			case NackRequeue:
 				msg.Nack(false, true)
-				fmt.Println("NackRequeue")
+				fmt.Println("\nNackRequeue")
 			default:
 				log.Fatalf("Something went wrong: %v\n", err)
 			}
 		}
 	}()
 
+	return nil
+}
+
+func PublishGob[T any](ch *amqp.Channel, exchange, key string, val T) error {
+	var net bytes.Buffer
+	enc := gob.NewEncoder(&net)
+	err := enc.Encode(val)
+	if err != nil {
+		return err
+	}
+	pub := amqp.Publishing{
+		ContentType: "application/gob",
+		Body:        net.Bytes(),
+	}
+	err = ch.PublishWithContext(context.Background(), exchange, key, false, false, pub)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func PublishGameLog(ch *amqp.Channel, username, message string) error {
+	gl := routing.GameLog{
+		Username:    username,
+		Message:     message,
+		CurrentTime: time.Now(),
+	}
+	err := PublishGob(ch, routing.ExchangePerilTopic, routing.GameLogSlug+"."+username, gl)
+	if err != nil {
+		return err
+	}
 	return nil
 }
