@@ -13,20 +13,32 @@ import (
 )
 
 func main() {
+
 	fmt.Println("Starting Peril server...")
+
 	connString := "amqp://guest:guest@localhost:5672/"
+
 	conn, err := amqp.Dial(connString)
 	if err != nil {
 		log.Fatalf("Could not connect: %v\n", err)
 	}
+
 	connCh, err := conn.Channel()
 	if err != nil {
 		log.Fatalf("Channel error: %v\n", err)
 	}
+
 	defer conn.Close()
+
 	fmt.Println("Connection successful.")
-	pubsub.DeclareAndBind(conn, routing.ExchangePerilTopic, routing.GameLogSlug, routing.GameLogSlug+".*", pubsub.QueueDurable)
+
+	err = pubsub.SubscribeGob(conn, routing.ExchangePerilTopic, routing.GameLogSlug, routing.GameLogSlug+".*", pubsub.QueueDurable, HandlerLogs())
+	if err != nil {
+		log.Fatalf("Error subscribing gob: %v\n", err)
+	}
+
 	gamelogic.PrintServerHelp()
+
 server_loop:
 	for {
 		words := gamelogic.GetInput()

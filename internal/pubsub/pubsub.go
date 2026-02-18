@@ -49,7 +49,7 @@ func DeclareAndBind(
 	exchange,
 	queueName,
 	key string,
-	queueType SimpleQueueType, // an enum to represent "durable" or "transient"
+	queueType SimpleQueueType,
 ) (*amqp.Channel, amqp.Queue, error) {
 
 	ch, err := conn.Channel()
@@ -96,7 +96,7 @@ func SubscribeJSON[T any](
 	exchange,
 	queueName,
 	key string,
-	queueType SimpleQueueType, // an enum to represent "durable" or "transient"
+	queueType SimpleQueueType,
 	handler func(T) AckType,
 ) error {
 
@@ -111,22 +111,24 @@ func SubscribeJSON[T any](
 	}
 
 	go func() {
+		defer ch.Close()
 		for msg := range deliveryCh {
 			var data T
 			err := json.Unmarshal(msg.Body, &data)
 			if err != nil {
-				log.Fatalf("Error unmarshalling data: %v\n", err)
+				fmt.Printf("Error unmarshalling data: %v\n", err)
+				continue
 			}
 			switch handler(data) {
 			case Ack:
 				msg.Ack(false)
-				fmt.Println("\nAck")
+				fmt.Println("Ack")
 			case NackDiscard:
 				msg.Nack(false, false)
-				fmt.Println("\nNackDiscard")
+				fmt.Println("NackDiscard")
 			case NackRequeue:
 				msg.Nack(false, true)
-				fmt.Println("\nNackRequeue")
+				fmt.Println("NackRequeue")
 			default:
 				log.Fatalf("Something went wrong: %v\n", err)
 			}
@@ -166,3 +168,63 @@ func PublishGameLog(ch *amqp.Channel, username, message string) error {
 	}
 	return nil
 }
+
+func SubscribeGob[T any](
+	conn *amqp.Connection,
+	exchange,
+	queueName,
+	key string,
+	queueType SimpleQueueType,
+	handler func(T) AckType,
+) error {
+	ch, _, err := DeclareAndBind(conn, exchange, queueName, key, queueType)
+	if err != nil {
+		return err
+	}
+
+	deliveryCh, err := ch.Consume(queueName, "", false, false, false, false, nil)
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		defer ch.Close()
+		for msg := range deliveryCh {
+			var data T
+			out := bytes.NewBuffer(msg.Body)
+			dec := gob.NewDecoder(out)
+			err := dec.Decode(&data)
+			if err != nil {
+				fmt.Printf("Error decoding gob: %v\n", err)
+				continue
+			}
+			switch handler(data) {
+			case Ack:
+				msg.Ack(false)
+				fmt.Println("Ack")
+			case NackDiscard:
+				msg.Nack(false, false)
+				fmt.Println("NackDiscard")
+			case NackRequeue:
+				msg.Nack(false, true)
+				fmt.Println("NackRequeue")
+			default:
+				log.Fatalf("Something went wrong: %v\n", err)
+			}
+		}
+	}()
+
+	return nil
+}
+
+/* func subscribe[T any](
+	conn *amqp.Connection,
+	exchange,
+	queueName,
+	key string,
+	queueType SimpleQueueType,
+	handler func(T) AckType,
+	unmarshaller func([]byte) (T, error),
+) error {
+
+} */
