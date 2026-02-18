@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
-	"os/signal"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -89,9 +87,4 @@ client_loop:
 			fmt.Println("Sorry, I don't understand that command.")
 		}
 	}
-	//waiting for ctrl+c
-	signalCh := make(chan os.Signal, 1)
-	signal.Notify(signalCh, os.Interrupt)
-	<-signalCh
-	fmt.Println("Interrupt detected, shutting down...")
 }
