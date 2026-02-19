@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"strconv"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -67,6 +68,7 @@ client_loop:
 			mv, err := gs.CommandMove(words)
 			if err != nil {
 				fmt.Printf("Move failed: %v\n", mv)
+				continue
 			}
 			err = pubsub.PublishJSON(publishCh, routing.ExchangePerilTopic, userMoves, mv)
 			if err != nil {
@@ -79,7 +81,22 @@ client_loop:
 		case "help":
 			gamelogic.PrintClientHelp()
 		case "spam":
-			fmt.Println("Spamming not allowed yet!")
+			if len(words) < 2 {
+				fmt.Println("Usage: spam <n>")
+				continue
+			}
+			num, err := strconv.Atoi(words[1])
+			if err != nil {
+				fmt.Println("Not a valid number.")
+				continue
+			}
+			for i := 0; i < num; i++ {
+				log := gamelogic.GetMaliciousLog()
+				err = pubsub.PublishGameLog(publishCh, gs.GetUsername(), log)
+				if err != nil {
+					fmt.Printf("Error publishing log: %v", err)
+				}
+			}
 		case "quit":
 			gamelogic.PrintQuit()
 			break client_loop
